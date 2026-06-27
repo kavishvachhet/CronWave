@@ -2,7 +2,7 @@ const { MongoClient } = require('mongodb');
 const jwt = require('jsonwebtoken');
 const fs = require('fs');
 
-const MONGO_URI = 'mongodb+srv://kavish_31:1giExbyouRvcvUXT@cluster0.746di7e.mongodb.net/jobscheduler?retryWrites=true&w=majority&appName=Cluster0';
+const MONGO_URI = 'mongodb+srv://username:password@cluster0.746di7e.mongodb.net/jobscheduler?retryWrites=true&w=majority&appName=Cluster0';
 const JWT_SECRET = Buffer.from('oipx5qcMDbTmAy//cnOO1UQY1hSv7dPodkncf5u5Ezw=', 'utf-8');
 const USERS_COUNT = 6000;
 const BATCH_SIZE = 1000;
