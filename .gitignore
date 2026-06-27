@@ -1,0 +1,28 @@
+# Java
+*.class
+*.jar
+*.log
+target/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+
+# Node
+k6/node_modules/
+k6/package-lock.json
+
+# JVM crash logs
+hs_err_pid*.log
+replay_pid*.log
+
+# k6 generated tokens (regenerate with seeder.js)
+k6/tokens.csv
