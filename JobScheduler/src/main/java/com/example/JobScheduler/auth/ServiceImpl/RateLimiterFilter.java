@@ -21,7 +21,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class RateLimiterFilter extends OncePerRequestFilter {
 
-    // private final RedisTemplate<String, Object> redisTemplate;
     private final StringRedisTemplate redisTemplate;
 
     private static final int REGISTER_LIMIT = 5;
@@ -29,8 +28,8 @@ public class RateLimiterFilter extends OncePerRequestFilter {
     private static final int JOBS_LIMIT      = 60;
     private static final Duration WINDOW     = Duration.ofMinutes(1);
 
-    // Atomic Lua script — increment + set expiry in one Redis operation
-    // No race condition possible
+    // Atomic Lua script — increment + set expiry in one Redis round-trip
+    // No race condition possible between INCR and EXPIRE
     private static final DefaultRedisScript<Long> RATE_LIMIT_SCRIPT;
 
     static {
@@ -38,7 +37,7 @@ public class RateLimiterFilter extends OncePerRequestFilter {
         RATE_LIMIT_SCRIPT.setScriptText(
             "local count = redis.call('INCR', KEYS[1]) " +
             "if count == 1 then " +
-            "  redis.call('EXPIRE', KEYS[1], tonumber(ARGV[1])) " +  // ADD tonumber()
+            "  redis.call('EXPIRE', KEYS[1], tonumber(ARGV[1])) " +
             "end " +
             "return count"
         );
@@ -70,8 +69,8 @@ public class RateLimiterFilter extends OncePerRequestFilter {
         );
 
         if (count == null) {
-            // Redis is down — fail open (let request through) or fail closed
-            // Failing open here so Redis outage doesn't bring down your API
+            // Redis is down — fail open (let request through)
+            // so Redis outage doesn't bring down your API
             log.error("Redis unavailable — skipping rate limit for IP: {}", ip);
             filterChain.doFilter(request, response);
             return;

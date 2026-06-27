@@ -267,6 +267,57 @@ Added compound and unique indexes on all queried fields:
 - `jobs`: `{ userId: 1 }` — user's job listing
 - `execution_logs`: `{ jobId: 1, executedAt: -1 }` — log retrieval
 
+### 5. Redis Rate Limiting with Atomic Lua Scripts
+
+**Problem**: Without rate limiting, a single bad actor can flood your API with thousands of requests and exhaust server resources for everyone.
+
+**Naive approach (broken)**:
+```
+count = redis.GET("rate:ip:path")     ← Thread A reads count = 59
+count = redis.GET("rate:ip:path")     ← Thread B reads count = 59 (race condition!)
+redis.INCR("rate:ip:path")            ← Thread A increments to 60
+redis.INCR("rate:ip:path")            ← Thread B increments to 61 (limit bypassed!)
+```
+
+**CronWave's approach (atomic Lua script)**:
+```lua
+local count = redis.call('INCR', KEYS[1])
+if count == 1 then
+  redis.call('EXPIRE', KEYS[1], tonumber(ARGV[1]))
+end
+return count
+```
+
+This Lua script executes **atomically inside Redis** — no other command can run between `INCR` and `EXPIRE`. This guarantees:
+- **No race conditions** — impossible for two threads to read the same count
+- **No key leaks** — `EXPIRE` is only set on the first request, preventing orphaned keys
+- **Single round-trip** — one network call instead of three (GET + INCR + EXPIRE)
+
+**Per-endpoint limits**:
+
+| Endpoint | Limit | Window | Purpose |
+|----------|-------|--------|---------|
+| `/auth/register` | 5 req | 1 min | Prevent mass account creation |
+| `/auth/login` | 10 req | 1 min | Prevent brute-force attacks |
+| `/jobs/*` | 60 req | 1 min | Prevent API abuse |
+
+**Filter chain order**:
+```
+Request → RateLimiterFilter → JwtFilter → Controller
+              ↓ (if over limit)
+         429 Too Many Requests (no JWT parsing wasted)
+```
+
+The rate limiter runs **before** JWT authentication in the Spring Security filter chain. This means rate-limited requests are rejected immediately without wasting CPU cycles on JWT signature verification.
+
+**Response headers** on every request:
+```
+X-Rate-Limit-Limit: 60
+X-Rate-Limit-Remaining: 45
+```
+
+**Fail-open design**: If Redis goes down, the rate limiter skips itself and lets all requests through. This ensures a Redis outage doesn't bring down your entire API.
+
 ---
 
 ## 📈 Scaling to 10,000+ Concurrent Users
