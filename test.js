@@ -8,8 +8,8 @@ async function testLoginRateLimit() {
     for (let i = 1; i <= 13; i++) {
         try {
             const res = await axios.post(`${BASE_URL}/auth/login`, {
-                email: 'kavishvachheta50@gmail.com',
-                password: 'Kavish@123'
+                email: 'dummy@gmail.com',
+                password: 'dummy@123'
             });
             console.log(`Request ${i}: ✅ ${res.status} | Remaining: ${res.headers['x-rate-limit-remaining']}`);
         } catch (err) {
