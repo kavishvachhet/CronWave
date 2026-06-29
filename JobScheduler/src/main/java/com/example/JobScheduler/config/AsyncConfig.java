@@ -22,5 +22,16 @@ public class AsyncConfig {
         // return null;
         return executor;
     }
+
+    @Bean(name = "registrationExecutorPool")
+    public Executor registrationExecutorPool(){
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(4);       // Match CPU cores for BCrypt
+        executor.setMaxPoolSize(8);        // Max threads hashing passwords
+        executor.setQueueCapacity(10000);  // Hold up to 10k registrations in RAM
+        executor.setThreadNamePrefix("reg-worker-");
+        executor.initialize();
+        return executor;
+    }
     
 }

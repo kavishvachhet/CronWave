@@ -10,7 +10,7 @@ import com.example.JobScheduler.auth.entity.Job;
 
 public interface JobService {
     String createJob(CreateJobRequest req);
-    Page<Job> getMyJobs(int page, int size);
+    com.example.JobScheduler.auth.dto.JobPageResponse getMyJobs(int page, int size);
     String DeleteJob(String jobid);
     String updateJobStatus(String jobid,UpdateJobStatus request);
 }

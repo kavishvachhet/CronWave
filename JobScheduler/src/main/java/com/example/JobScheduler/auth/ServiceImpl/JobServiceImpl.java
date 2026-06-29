@@ -1,151 +1,94 @@
 package com.example.JobScheduler.auth.ServiceImpl;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
-import org.apache.coyote.BadRequestException;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cglib.core.Local;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.security.core.context.SecurityContext;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import com.example.JobScheduler.auth.Services.CronSerivce;
 import com.example.JobScheduler.auth.Services.JobService;
+import com.example.JobScheduler.auth.Utils.UserPrincipal;
 import com.example.JobScheduler.auth.dto.CreateJobRequest;
+import com.example.JobScheduler.auth.dto.JobMutationEvent;
 import com.example.JobScheduler.auth.dto.UpdateJobStatus;
-import com.example.JobScheduler.auth.entity.Job;
-import com.example.JobScheduler.auth.entity.User;
-import com.example.JobScheduler.auth.entity.jobstatus;
-import com.example.JobScheduler.auth.repository.JobRepo;
-import com.example.JobScheduler.auth.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
 public class JobServiceImpl implements JobService {
-    private final JobRepo jobRepo;
-    private final UserRepository userRepository;
+    
     private final CronSerivce cronSerivce;
     private final JobServiceCacheImpl jobServiceCacheImpl;
+    private final KafkaTemplate<String, JobMutationEvent> kafkaTemplate;
 
-    @CacheEvict(value = "jobs", allEntries = true)
+    private static final String TOPIC = "job-mutations";
+
     @Override
     public String createJob(CreateJobRequest req) {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        
-        User user = userRepository
-        .findByEmail(email)
-        .orElseThrow(() ->
-                new RuntimeException("User not found"));
+        UserPrincipal principal = (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String userId = principal.getUserId();
 
-        LocalDateTime nexRun;
-
+        // Fail-fast validation for cron expression before queuing
         try {
-            nexRun = cronSerivce.getNextExecution(
-                    req.getCronExpression(),
-                    LocalDateTime.now()
-            );
+            cronSerivce.getNextExecution(req.getCronExpression(), LocalDateTime.now());
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Invalid cron expression", e);
         }
-        
-        Job job = Job.builder()
-        .userId(user.getId())
-        .name(req.getName())
-        .url(req.getUrl())
-        .method(req.getMethod())
-        .requestBody(req.getRequestBody())
-        .cronExpression(req.getCronExpression())
-        .status(jobstatus.ACTIVE)
-        .nextRunAt(nexRun)
-        .build();
 
-        jobRepo.save(job);
-        return "Job Created"; 
+        JobMutationEvent event = JobMutationEvent.builder()
+            .mutationType(JobMutationEvent.MutationType.CREATE)
+            .userId(userId)
+            .name(req.getName())
+            .url(req.getUrl())
+            .method(req.getMethod())
+            .requestBody(req.getRequestBody())
+            .cronExpression(req.getCronExpression())
+            .build();
+
+        kafkaTemplate.send(TOPIC, userId, event);
+        return "Job creation accepted and queued"; 
     }
 
-    // @Cacheable(value = "jobs", key = "#email + '-' + #page + '-' + #size")
-    // public Page<Job> getMyJobsCached(String email, int page, int size) {
-    //     //  log.info("CACHE MISS — hitting MongoDB for: {}", email);
-    //     User user = userRepository
-    //         .findByEmail(email)
-    //         .orElseThrow(() -> new RuntimeException("User not found"));
-
-    //     Pageable pageable = PageRequest.of(page, size);
-    //     return jobRepo.findByUserId(user.getId(), pageable);
-    // }
-    // @Override
-    // public List<Job> getMyJobs(){
-    //     String email = SecurityContextHolder
-    //         .getContext()
-    //         .getAuthentication()
-    //         .getName();
-
-    //     User user = userRepository
-    //             .findByEmail(email)
-    //             .orElseThrow();
-
-    //     Pageable
-    //     return jobRepo.findByUserId(user.getId());
-
-    // }
-
-    @CacheEvict(value = "jobs", allEntries = true)
     @Override
     public String DeleteJob(String jobid) {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        UserPrincipal principal = (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String userId = principal.getUserId();
 
-        User user = userRepository.findByEmail(email).orElseThrow(()->
-        new RuntimeException("User Not Found"));
+        JobMutationEvent event = JobMutationEvent.builder()
+            .mutationType(JobMutationEvent.MutationType.DELETE)
+            .userId(userId)
+            .jobId(jobid)
+            .build();
 
-        Job job = jobRepo.findById(jobid).orElseThrow(()-> new RuntimeException("Job not Found"));
-        
-        if(!job.getUserId().equals(user.getId())){
-            throw new RuntimeException("UnAuthorized");
-        }
-
-        jobRepo.delete(job);
-        return "Job Deleted SuccessFully";
-
+        kafkaTemplate.send(TOPIC, userId, event);
+        return "Job deletion accepted and queued";
     }
 
     @Override
     public String updateJobStatus(String jobid, UpdateJobStatus request) {
-        String email = SecurityContextHolder.getContext().
-                    getAuthentication().getName();
-        
-        User user = userRepository.findByEmail(email).orElseThrow(()->
-            new RuntimeException("User Not Found"));
+        UserPrincipal principal = (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String userId = principal.getUserId();
 
-        Job job = jobRepo.findById(jobid).orElseThrow(()->
-            new RuntimeException("Job Not Found"));
+        JobMutationEvent event = JobMutationEvent.builder()
+            .mutationType(JobMutationEvent.MutationType.UPDATE_STATUS)
+            .userId(userId)
+            .jobId(jobid)
+            .status(request.getStatus())
+            .build();
 
-        if (!job.getUserId().equals(user.getId())) {
-            throw new RuntimeException("Unauthorized");
-        }
-        
-        job.setStatus(request.getStatus());
-        jobRepo.save(job);
-        return "Job status updated successfully";
+        kafkaTemplate.send(TOPIC, userId, event);
+        return "Job status update accepted and queued";
     }
 
-    // @Cacheable(value = "jobs",key = "#root.authentication.name + #page + #size")
     @Override
-    public Page<Job> getMyJobs(int page, int size) {
+    public com.example.JobScheduler.auth.dto.JobPageResponse getMyJobs(int page, int size) {
+        UserPrincipal principal = (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String userId = principal.getUserId();
 
-        String email = SecurityContextHolder
-        .getContext()
-        .getAuthentication()
-        .getName();
-
-         return jobServiceCacheImpl.getMyJobsCached(email, page, size);
+        // Still synchronous, directly hits Redis cache
+        return jobServiceCacheImpl.getMyJobsCached(userId, page, size);
     }
-
-
 }
+

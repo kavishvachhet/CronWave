@@ -39,19 +39,20 @@ public class JwtFilter extends OncePerRequestFilter {
             return;
         }
 
-        String token = authHeader.substring(7);
+        String token = authHeader.substring(7).trim();
         String email = jwtService.extractEmail(token);
+        String userId = jwtService.extractUserId(token);
 
-        if(email != null && SecurityContextHolder.getContext().getAuthentication() == null){
-            UserDetails userdetails = userdetailservice.loadUserByUsername(email);
+        if (email != null && userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            // Bypass the database entirely and construct the principal directly from the JWT claims!
+            UserPrincipal principal = new UserPrincipal(email, userId);
 
             UsernamePasswordAuthenticationToken authtoken = 
-                new UsernamePasswordAuthenticationToken(userdetails,null,userdetails.getAuthorities());
+                new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
             
             authtoken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
             SecurityContextHolder.getContext().setAuthentication(authtoken);
-
         }
         filterChain.doFilter(request, response);
         // throw new UnsupportedOperationException("Unimplemented method 'doFilterInternal'");

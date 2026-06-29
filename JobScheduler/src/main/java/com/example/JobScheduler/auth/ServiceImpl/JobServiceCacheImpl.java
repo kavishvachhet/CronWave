@@ -19,15 +19,12 @@ import lombok.extern.slf4j.Slf4j;
 public class JobServiceCacheImpl {
     private final UserRepository userRepository;
     private final JobRepo jobRepo;
-    @Cacheable(value = "jobs", key = "#email + '-' + #page + '-' + #size")
-    public Page<Job> getMyJobsCached(String email, int page, int size) {
-        log.info("CACHE MISS — hitting MongoDB for: {}", email);
-
-        var user = userRepository
-            .findByEmail(email)
-            .orElseThrow(() -> new RuntimeException("User not found"));
+    @Cacheable(value = "jobs", key = "#userId + '-' + #page + '-' + #size", sync = true)
+    public com.example.JobScheduler.auth.dto.JobPageResponse getMyJobsCached(String userId, int page, int size) {
+        log.info("CACHE MISS — hitting MongoDB for userId: {}", userId);
 
         Pageable pageable = PageRequest.of(page, size);
-        return jobRepo.findByUserId(user.getId(), pageable);
+        Page<Job> pageResult = jobRepo.findByUserId(userId, pageable);
+        return com.example.JobScheduler.auth.dto.JobPageResponse.fromPage(pageResult);
     }
 }

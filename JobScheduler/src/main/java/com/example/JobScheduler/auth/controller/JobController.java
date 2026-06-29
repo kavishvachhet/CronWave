@@ -42,7 +42,7 @@ public class JobController {
     }
 
     @GetMapping
-    public ResponseEntity<Page<Job>> getMyJobs(
+    public ResponseEntity<com.example.JobScheduler.auth.dto.JobPageResponse> getMyJobs(
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(jobService.getMyJobs(page, size));

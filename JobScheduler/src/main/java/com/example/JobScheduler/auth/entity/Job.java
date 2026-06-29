@@ -1,5 +1,6 @@
 package com.example.JobScheduler.auth.entity;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
 import org.springframework.data.annotation.Id;
@@ -20,7 +21,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Job {
+public class Job implements Serializable {
+    private static final long serialVersionUID = 1L;
     @Id
     private String id;
 

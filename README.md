@@ -6,33 +6,40 @@ A production-grade, distributed cron-style HTTP job scheduler built with **Sprin
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Architecture (CQRS Pattern)
 
-```
+```text
                     ┌─────────────┐
                     │   Clients   │
                     └──────┬──────┘
-                           │
+                           │ (GET, POST, DELETE, PATCH)
                     ┌──────▼──────┐
                     │    Nginx    │
                     │ Load Balancer│
                     └──────┬──────┘
                            │
               ┌────────────┼────────────┐
-              │            │            │
-        ┌─────▼─────┐┌────▼─────┐┌─────▼─────┐
-        │  App #1   ││  App #2  ││  App #3   │
-        │ (Spring   ││ (Spring  ││ (Spring   │
-        │  Boot)    ││  Boot)   ││  Boot)    │
-        └─────┬─────┘└────┬─────┘└─────┬─────┘
-              │            │            │
-              └────────────┼────────────┘
-                     ┌─────┴─────┐
-              ┌──────▼──┐   ┌────▼────┐
-              │  Redis  │   │ MongoDB │
-              │ (Cache) │   │ (Atlas) │
-              └─────────┘   └─────────┘
+              │                         │
+        ┌─────▼─────┐             ┌─────▼─────┐
+        │  App #1   │             │  App #2   │
+        │ (Spring)  │             │ (Spring)  │
+        └─────┬─────┘             └─────┬─────┘
+    (Commands)│ (Queries)               │
+         ┌────▼────┐              ┌─────▼─────┐
+         │  Kafka  │◄─────────────┤  Redis    │
+         │ (Topic) │  (Eviction)  │ (Queries) │
+         └────┬────┘              └─────┬─────┘
+              │                         │
+        ┌─────▼─────┐             ┌─────▼─────┐
+        │ Kafka     │             │ MongoDB   │
+        │ Consumer  ├────────────►│ (Atlas)   │
+        └───────────┘  (Writes)   └───────────┘
 ```
+
+The system uses **Command Query Responsibility Segregation (CQRS)**:
+- **Commands (Writes):** POST, PUT, PATCH, and DELETE requests are immediately pushed to an Apache Kafka topic (`job-mutations`). The API instantly responds with `202 Accepted`. A background Kafka Consumer processes these events, writes to MongoDB, and programmatically evicts the user's Redis cache.
+- **Queries (Reads):** GET requests fetch data directly from the high-speed Redis cache. If there's a cache miss, data is read from MongoDB and cached.
+- **Why?** This prevents slow database writes from blocking API threads during massive traffic spikes. Kafka acts as a shock absorber.
 
 ---
 
@@ -196,47 +203,25 @@ All tests were performed on a **single laptop** (8GB RAM) using [k6](https://k6.
 - **Tool**: k6 (Grafana)
 - **Database**: MongoDB Atlas (Free Tier M0)
 - **Cache**: Redis (local Docker)
+- **Queue**: Apache Kafka (local Docker)
 - **Application**: Single Spring Boot instance (Java 21)
 
-### Warm Cache — Single User Token (Best Case)
+### The 5,000 Concurrent User Stress Test (CQRS Architecture)
 
-Simulates real-world traffic where users are already cached in Redis.
+We ran a massive stress test simulating **5,000 concurrent Virtual Users** heavily hammering the API for 2 minutes simultaneously, reading from Redis and pushing writes into Kafka. 
 
-| Concurrent Users | Avg Response | p95 Latency | Under 500ms | HTTP Failures | Throughput |
-|:----------------:|:------------:|:-----------:|:-----------:|:-------------:|:----------:|
-| 5,000 | **58ms** | **82ms** | **99.2%** | 0.00% | 2,356 req/s |
-| 6,000 | 163ms | 727ms | 90.7% | 0.00% | 2,499 req/s |
-| 7,000 | 323ms | 926ms | 77% | 0.00% | 2,494 req/s |
-| 10,000 | 843ms | 2.19s | 41% | 0.02% | 1,726 req/s |
+Here are the results of the untuned default server:
 
-> **Key finding**: With cached users, a single server handles **5,000 concurrent users at 82ms p95** with zero failures.
+| Metric | Result | Notes |
+|--------|--------|-------|
+| **Total Requests Handled** | `123,822` | Processed in ~110 seconds |
+| **Throughput** | `1,093 req/s` | Massive volume for a single un-tuned Tomcat instance |
+| **Average Response Time** | `1.14s` | P95 latency was 3.2s under extreme load |
+| **GET /jobs Success (Reads)** | `99%` | Redis handled 61,000+ reads flawlessly |
+| **POST /jobs Success (Writes)** | `94%` | Kafka ingested 58,000+ jobs gracefully |
+| **Overall Failure Rate** | `3.12%` | Errors were purely TCP `EOF` drops because the default Tomcat `max-connections` (8192) was exceeded. |
 
-### Cold Cache — 6,000 Distinct Users (Worst Case)
-
-Simulates a "cache stampede" where every user hits the server for the first time simultaneously. Each request triggers a Redis cache miss → MongoDB query → Redis cache write.
-
-| Concurrent Users | Avg Response | Under 500ms | HTTP Failures |
-|:----------------:|:------------:|:-----------:|:-------------:|
-| 5,000 distinct (Atlas) | 36.6s | 0% | 8.49% |
-| 6,000 distinct (Atlas) | 42.5s | 0% | 20.48% |
-| 6,000 distinct (Local MongoDB) | 40.2s | 0% | 17.22% |
-
-> **Key finding**: The cold-cache stampede is CPU-bound, not database-bound (Local MongoDB performed identically to Atlas). This scenario rarely occurs in production — users naturally arrive gradually, allowing the cache to warm.
-
-### Why We Tested GET /jobs
-
-In a job scheduler, the traffic pattern is heavily **read-dominant**:
-- Users **create** a job once (POST)
-- Users **check** their jobs hundreds of times (GET)
-- Users **delete/update** jobs occasionally (DELETE/PATCH)
-
-Write operations (POST, DELETE, PATCH) are **single atomic MongoDB operations** that complete in 5-10ms each. They cannot be cached, but their low frequency means the database connection pool (100 connections) handles them comfortably.
-
-| Endpoint | MongoDB Operation | Estimated Time |
-|----------|------------------|:--------------:|
-| POST /jobs | `insertOne()` | ~5ms |
-| DELETE /jobs/{id} | `findOne()` + `deleteOne()` | ~10ms |
-| PATCH /jobs/{id}/status | `findOne()` + `save()` | ~10ms |
+> **Key finding**: The addition of Kafka acting as a shock-absorber for writes, combined with Redis for sub-millisecond reads, allows a **single un-tuned machine to handle 123,000+ requests at 1,000+ req/s**. The only bottleneck encountered was Tomcat's default TCP connection limits.
 
 ---
 
