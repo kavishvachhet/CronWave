@@ -413,13 +413,26 @@ The test ramps to 5,000 concurrent virtual users over 30 seconds, each using a u
 
 MIT
 
-
-
 ## To Check How many topics in Kafka
 
- docker exec cronwave-kafka kafka-topics --list --bootstrap-server localhost:9092
+```bash
+docker exec cronwave-kafka kafka-topics --list --bootstrap-server localhost:9092
+```
 
 ## To Check Consumer Groups
 
+```bash
 docker exec cronwave-kafka kafka-consumer-groups --list --bootstrap-server localhost:9092
+```
 
+## To Read Messages from Topics
+
+**For `job-executions`:**
+```bash
+docker exec cronwave-kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic job-executions --from-beginning
+```
+
+**For `job-mutations`:**
+```bash
+docker exec cronwave-kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic job-mutations --from-beginning
+```
