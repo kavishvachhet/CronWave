@@ -1,6 +1,6 @@
 const { MongoClient } = require('mongodb');
 
-const MONGO_URI = 'mongodb+srv://kavish_1121:ZcYO8exJOAqpqi7V@cluster0.cvw1r6l.mongodb.net/jobscheduler?retryWrites=true&w=majority&appName=Cluster0';
+const MONGO_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/jobscheduler';
 
 async function wipe() {
     console.log(`Connecting to MongoDB...`);
