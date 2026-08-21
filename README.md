@@ -437,7 +437,7 @@ docker exec cronwave-kafka kafka-console-consumer --bootstrap-server localhost:9
 docker exec cronwave-kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic job-mutations --from-beginning
 ```
 
-# Monitoring Redis
+## Monitoring Redis
 ```bash
 docker exec -it redis-server redis-cli monitor
 ```
