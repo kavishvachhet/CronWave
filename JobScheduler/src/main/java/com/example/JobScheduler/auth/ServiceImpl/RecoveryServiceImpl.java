@@ -27,7 +27,7 @@ public class RecoveryServiceImpl implements RecoveryService {
 
     private static final String TOPIC = "job-executions";
 
-    @EventListener(ApplicationReadyEvent.class) //run once on startup
+    @EventListener(ApplicationReadyEvent.class) 
     @Override
     public void recoverStuckJobs() {
         
@@ -52,7 +52,7 @@ public class RecoveryServiceImpl implements RecoveryService {
                 job.setStatus(jobstatus.RETRYING);
                 jobRepo.save(job);
 
-                // Publish to Kafka for retry
+                
                 JobExecutionEvent event = JobExecutionEvent.builder()
                     .jobId(job.getId())
                     .name(job.getName())

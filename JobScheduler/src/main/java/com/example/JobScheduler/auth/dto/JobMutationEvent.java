@@ -21,11 +21,11 @@ public class JobMutationEvent {
     private MutationType mutationType;
     private String userId;
     
-    // Required for UPDATE and DELETE
+    
     private String jobId;
     private jobstatus status;
 
-    // Required for CREATE
+    
     private String name;
     private String url;
     private String method;

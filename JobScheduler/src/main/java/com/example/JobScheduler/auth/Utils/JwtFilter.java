@@ -30,7 +30,7 @@ public class JwtFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        // TODO Auto-generated method stub
+        
         String authHeader = request.getHeader("Authorization");
         if (authHeader == null ||
                 !authHeader.startsWith("Bearer ")) {
@@ -44,7 +44,7 @@ public class JwtFilter extends OncePerRequestFilter {
         String userId = jwtService.extractUserId(token);
 
         if (email != null && userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            // Bypass the database entirely and construct the principal directly from the JWT claims!
+            
             UserPrincipal principal = new UserPrincipal(email, userId);
 
             UsernamePasswordAuthenticationToken authtoken = 
@@ -55,7 +55,7 @@ public class JwtFilter extends OncePerRequestFilter {
             SecurityContextHolder.getContext().setAuthentication(authtoken);
         }
         filterChain.doFilter(request, response);
-        // throw new UnsupportedOperationException("Unimplemented method 'doFilterInternal'");
+        
     }
     
 }

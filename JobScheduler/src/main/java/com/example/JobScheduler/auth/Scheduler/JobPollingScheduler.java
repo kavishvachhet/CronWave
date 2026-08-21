@@ -37,7 +37,7 @@ public class JobPollingScheduler {
         log.info("Claimed {} jobs at {}", claimedJobs.size(), LocalDateTime.now());
 
         for(Job job : claimedJobs){
-            // Convert Job entity → lightweight Kafka event
+            
             JobExecutionEvent event = JobExecutionEvent.builder()
                 .jobId(job.getId())
                 .name(job.getName())
@@ -50,7 +50,7 @@ public class JobPollingScheduler {
                 .build();
 
             kafkaTemplate.send(TOPIC, job.getId(), event);
-            log.info("📤 Published job {} to Kafka topic '{}'", job.getName(), TOPIC);
+            log.info(" Published job {} to Kafka topic '{}'", job.getName(), TOPIC);
         }
     }
 }

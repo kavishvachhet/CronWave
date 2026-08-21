@@ -30,7 +30,7 @@ public class JobServiceImpl implements JobService {
         UserPrincipal principal = (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         String userId = principal.getUserId();
 
-        // Fail-fast validation for cron expression before queuing
+        
         try {
             cronSerivce.getNextExecution(req.getCronExpression(), LocalDateTime.now());
         } catch (IllegalArgumentException e) {
@@ -87,7 +87,7 @@ public class JobServiceImpl implements JobService {
         UserPrincipal principal = (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         String userId = principal.getUserId();
 
-        // Still synchronous, directly hits Redis cache
+        
         return jobServiceCacheImpl.getMyJobsCached(userId, page, size);
     }
 }

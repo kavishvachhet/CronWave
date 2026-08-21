@@ -28,21 +28,21 @@ public class AuthServiceImpl implements AuthService{
 
     @Override
     public AuthResponse register(RegisterRequest req) {
-        // Quick check — this is a fast indexed query
+        
         if(userRepository.findByEmail(req.getEmail()).isPresent()){
             return new AuthResponse("Email Already Exists");
         }
 
-        // Generate userId upfront so the JWT is valid immediately
+        
         String userId = UUID.randomUUID().toString();
 
-        // Generate JWT instantly (no CPU-heavy work here)
+        
         String token = jwtService.generateToken(req.getEmail(), userId);
 
-        // Offload the SLOW password hashing + MongoDB save to background
+        
         registrationWorker.processRegistration(userId, req.getName(), req.getEmail(), req.getPassword());
 
-        // Return the token immediately — user can start using the API right now!
+        
         return new AuthResponse(token);
     }
 

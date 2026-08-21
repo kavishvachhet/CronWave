@@ -31,7 +31,7 @@ public class KafkaConfig {
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
 
-    // ─── Producer for JobExecutionEvent ───────────────────────
+    
 
     @Bean
     public ProducerFactory<String, JobExecutionEvent> producerFactory() {
@@ -48,7 +48,7 @@ public class KafkaConfig {
         return new KafkaTemplate<>(producerFactory());
     }
 
-    // ─── Producer for JobMutationEvent ────────────────────────
+    
 
     @Bean
     public ProducerFactory<String, JobMutationEvent> mutationProducerFactory() {
@@ -65,7 +65,7 @@ public class KafkaConfig {
         return new KafkaTemplate<>(mutationProducerFactory());
     }
 
-    // ─── Consumer for JobExecutionEvent ───────────────────────
+    
 
     @Bean
     public ConsumerFactory<String, JobExecutionEvent> consumerFactory() {
@@ -89,7 +89,7 @@ public class KafkaConfig {
         return factory;
     }
 
-    // ─── Consumer for JobMutationEvent ────────────────────────
+    
 
     @Bean
     public ConsumerFactory<String, JobMutationEvent> mutationConsumerFactory() {
@@ -113,21 +113,21 @@ public class KafkaConfig {
         return factory;
     }
 
-    // ─── Topic ───────────────────────────────────────────────
+    
 
     @Bean
     public NewTopic jobExecutionsTopic() {
         return TopicBuilder.name("job-executions")
-            .partitions(3)       // 3 partitions for parallel consumption
-            .replicas(1)         // Single broker in dev
+            .partitions(3)       
+            .replicas(1)         
             .build();
     }
 
     @Bean
     public NewTopic jobMutationsTopic() {
         return TopicBuilder.name("job-mutations")
-            .partitions(3)       // 3 partitions for parallel consumption
-            .replicas(1)         // Single broker in dev
+            .partitions(3)       
+            .replicas(1)         
             .build();
     }
 }

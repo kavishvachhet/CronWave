@@ -36,14 +36,14 @@ public class JobExecutorServiceImpl implements JobExecutorService {
     private final RestTemplate restTemplate;
     private final RetryService retryService;
 
-    @Async("jobExecutorPool")   // fix typo
+    @Async("jobExecutorPool")   
     @Override
     public void executeAsync(Job job) {
         log.info("Executing job: {} | method: {} | url: {}",
             job.getName(), job.getMethod(), job.getUrl());
 
-        long startTime = System.currentTimeMillis();  // fix typo
-        int attempt = 1;                               // fix typo
+        long startTime = System.currentTimeMillis();  
+        int attempt = 1;                               
 
         try {
             HttpHeaders headers = new HttpHeaders();
@@ -83,8 +83,8 @@ public class JobExecutorServiceImpl implements JobExecutorService {
 
             log.error("Job {} failed: {}", job.getName(), e.getMessage());
 
-            // saveLog(job.getId(), ExecutionStatus.FAILED, attempt,
-            //         0, responseTime, e.getMessage(), null); 
+            
+            
 
             job.setStatus(jobstatus.FAILED);
             jobRepo.save(job);

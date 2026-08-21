@@ -5,10 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * Lightweight event published to Kafka for job execution.
- * Only carries the data needed to execute — not the full Job entity.
- */
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

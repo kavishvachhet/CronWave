@@ -78,7 +78,7 @@ public class RetrybackoffImpl implements RetryService {
                     body = body.substring(0, 5000) + "...[truncated]";
                 }
 
-                // SUCCESS — log it, reset retry count, reschedule
+                
                 saveLog(job.getId(), ExecutionStatus.SUCCESS, currentAttempt,
                         response.getStatusCode().value(), responseTime, null, body);
 
@@ -88,13 +88,13 @@ public class RetrybackoffImpl implements RetryService {
 
                 job.setStatus(jobstatus.ACTIVE);
                 job.setNextRunAt(nextRun);
-                job.setRetrycount(0);   // reset on success
+                job.setRetrycount(0);   
                 jobRepo.save(job);
 
                 log.info("Job {} succeeded on retry attempt {}. Next run: {}",
                     job.getName(), currentAttempt, nextRun);
 
-                return; // done, exit retry loop
+                return; 
 
             } catch (Exception e) {
                 long responseTime = System.currentTimeMillis() - startTime;
@@ -102,11 +102,11 @@ public class RetrybackoffImpl implements RetryService {
                 log.error("Job {} retry attempt {} failed: {}",
                     job.getName(), currentAttempt, e.getMessage());
 
-                // Log each failed attempt
+                
                 saveLog(job.getId(), ExecutionStatus.FAILED, currentAttempt,
                         0, responseTime, e.getMessage(), null);
 
-                // Continue loop for next retry
+                
             }
 
         }
@@ -117,8 +117,8 @@ public class RetrybackoffImpl implements RetryService {
         job.setStatus(jobstatus.DEAD);
         jobRepo.save(job);
 
-        // saveLog(job.getId(), ExecutionStatus.FAILED, job.getRetrycount(),
-        //         0, 0, "Max retries exhausted — job marked DEAD", null);
+        
+        
 
         }
 

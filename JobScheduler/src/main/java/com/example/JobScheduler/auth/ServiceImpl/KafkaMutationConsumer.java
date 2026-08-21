@@ -26,7 +26,7 @@ public class KafkaMutationConsumer {
 
     @KafkaListener(topics = "job-mutations", groupId = "cronwave-mutations", containerFactory = "mutationKafkaListenerContainerFactory")
     public void consumeMutation(JobMutationEvent event) {
-        log.info("▶ Consuming mutation event: {} for user: {}", event.getMutationType(), event.getUserId());
+        log.info(" Consuming mutation event: {} for user: {}", event.getMutationType(), event.getUserId());
 
         try {
             switch (event.getMutationType()) {
@@ -44,12 +44,12 @@ public class KafkaMutationConsumer {
                     return;
             }
 
-            // Invalidate the cache AFTER successful DB write
+            
             evictCache();
 
         } catch (Exception e) {
-            log.error("❌ Failed to process mutation event: {}", e.getMessage(), e);
-            // In a production system, you would push this to a Dead Letter Queue (DLQ)
+            log.error(" Failed to process mutation event: {}", e.getMessage(), e);
+            
         }
     }
 
@@ -68,16 +68,16 @@ public class KafkaMutationConsumer {
             .build();
 
         jobRepo.save(job);
-        log.info("✅ Asynchronously created job: {}", job.getName());
+        log.info(" Asynchronously created job: {}", job.getName());
     }
 
     private void handleUpdateStatus(JobMutationEvent event) {
         jobRepo.findById(event.getJobId()).ifPresent(job -> {
-            // Verify ownership before mutating
+            
             if (job.getUserId().equals(event.getUserId())) {
                 job.setStatus(event.getStatus());
                 jobRepo.save(job);
-                log.info("✅ Asynchronously updated job {} status to {}", job.getId(), event.getStatus());
+                log.info(" Asynchronously updated job {} status to {}", job.getId(), event.getStatus());
             } else {
                 log.warn("Unauthorized attempt to update job {}", job.getId());
             }
@@ -86,10 +86,10 @@ public class KafkaMutationConsumer {
 
     private void handleDelete(JobMutationEvent event) {
         jobRepo.findById(event.getJobId()).ifPresent(job -> {
-            // Verify ownership before mutating
+            
             if (job.getUserId().equals(event.getUserId())) {
                 jobRepo.delete(job);
-                log.info("✅ Asynchronously deleted job {}", job.getId());
+                log.info(" Asynchronously deleted job {}", job.getId());
             } else {
                 log.warn("Unauthorized attempt to delete job {}", job.getId());
             }
@@ -99,7 +99,7 @@ public class KafkaMutationConsumer {
     private void evictCache() {
         if (cacheManager.getCache("jobs") != null) {
             cacheManager.getCache("jobs").clear();
-            log.debug("🧹 Redis cache 'jobs' evicted.");
+            log.debug(" Redis cache 'jobs' evicted.");
         }
     }
 }

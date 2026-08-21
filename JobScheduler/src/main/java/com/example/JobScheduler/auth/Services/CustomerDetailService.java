@@ -26,7 +26,7 @@ public class CustomerDetailService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        // Check Redis cache first
+        
         String cachedPassword = redisTemplate.opsForValue().get("user:" + email);
         if (cachedPassword != null) {
             log.debug("Cache HIT for user: {}", email);
@@ -39,7 +39,7 @@ public class CustomerDetailService implements UserDetailsService {
         User user = userRepository.findByEmail(email)
             .orElseThrow(() -> new UsernameNotFoundException("User not Found"));
 
-        // Cache for 5 minutes
+        
         redisTemplate.opsForValue().set("user:" + email, user.getPassword(),
             Duration.ofMinutes(5));
 

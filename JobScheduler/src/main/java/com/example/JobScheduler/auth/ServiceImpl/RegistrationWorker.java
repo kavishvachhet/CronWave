@@ -22,7 +22,7 @@ public class RegistrationWorker {
     public void processRegistration(String userId, String name, String email, String rawPassword) {
         log.info("Background registration started for: {}", email);
 
-        // This is the SLOW part (~200ms of CPU time for BCrypt)
+        
         String hashedPassword = passwordEncoder.encode(rawPassword);
 
         User user = User.builder()

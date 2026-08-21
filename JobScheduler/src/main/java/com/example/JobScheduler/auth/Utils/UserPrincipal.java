@@ -23,7 +23,7 @@ public class UserPrincipal implements UserDetails {
 
     @Override
     public String getPassword() {
-        return null; // Not needed for JWT validation
+        return null; 
     }
 
     @Override

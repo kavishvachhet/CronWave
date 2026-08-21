@@ -5,10 +5,9 @@ import { check, sleep } from 'k6';
 export const options = {
     // This ramps up to a massive number of concurrent Virtual Users (VUs)
     stages: [
-        { duration: '30s', target: 1000 },  // Ramp up to 1,000 users over 30s
-        { duration: '30s', target: 5000 },  // Spike to 5,000 users over the next 30s
-        { duration: '30s', target: 5000 },  // Hold at 5,000 users
-        { duration: '20s', target: 0 },     // Ramp down to 0
+        { duration: '30s', target: 10000 },  // Ramp up to 10,000 users over 30s
+        { duration: '1m', target: 10000 },  // Hold 10,000 users for 1 minute
+        { duration: '20s', target: 0 },     // Ramp down gracefully
     ],
     thresholds: {
         http_req_duration: ['p(95)<500'], // 95% of requests must complete below 500ms
@@ -39,14 +38,14 @@ export default function (data) {
     });
 
     const postRes = http.post(`${BASE_URL}/jobs`, postPayload, { headers });
-    
+
     check(postRes, {
         'POST job is status 200': (r) => r.status === 200,
     });
 
     // Action B: Fetch Dashboard (Tests Redis Cache)
     const getRes = http.get(`${BASE_URL}/jobs?page=0&size=20`, { headers });
-    
+
     check(getRes, {
         'GET jobs is status 200': (r) => r.status === 200,
     });
