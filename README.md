@@ -1,4 +1,4 @@
-# 🌊 CronWave — Distributed HTTP Job Scheduler
+# CronWave — Distributed HTTP Job Scheduler
 
 A production-grade, distributed cron-style HTTP job scheduler built with **Spring Boot 3.5**, **MongoDB**, and **Redis**. CronWave lets you schedule recurring HTTP calls (GET, POST, PUT, DELETE, PATCH) using cron expressions, with automatic retries, exponential backoff, crash recovery, and horizontal scaling support.
 
